@@ -1,84 +1,120 @@
 package com.example.apublic.foodmanager;
 
 import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.ContextMenu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.ListView;
 import android.support.design.widget.FloatingActionButton;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.example.apublic.foodmanager.R;
 
 public class FoodManager extends AppCompatActivity {
     private final int MP = ViewGroup.LayoutParams.MATCH_PARENT;
     private final int WC = ViewGroup.LayoutParams.WRAP_CONTENT;
+    static final int CONTEXT_MENU_EDIT = 0;
+    static final int CONTEXT_MENU_DELETE = 1;
+
+    private ListView foodView;
+
+    private DBcontrol foodDB;
 
     FloatingActionButton addButton;
+
+    private List<ListItem> foodList = new ArrayList<ListItem>();
+    ImageArrayAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_food_manager);
 
-        addButton = (FloatingActionButton) findViewById( R.id.addButton );
-        viewFood();
+        foodDB = new DBcontrol(this);
+        addButton = (FloatingActionButton) findViewById(R.id.addButton);
 
-        addButton.setOnClickListener( new View.OnClickListener() {
+        foodDB.open();
+
+        addButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick( View v ){
-                // インテントの生成
+            public void onClick(View v) {
+                // 食品を追加するボタンを押すと,食品追加画面へ移動する.
                 Intent intent = new Intent(FoodManager.this, AddFood.class);
                 startActivityForResult(intent, 0);
-                // viewFood();
-                // toAddView();
             }
         });
+
+        viewFoods();
+    }
+
+    protected void onRestart() {
+        viewFoods();
+
+        super.onRestart();
     }
 
     // トップ画面を開く際にDBからすべての食材のデータを表示する.
-    private void viewFood(){
-        LinearLayout onlyFoodListL  = new LinearLayout( this );     // 一つの食材をイメージを縦2行分にして右に賞味期限,名称を2行にして表示するためレイアウト
-        ( (LinearLayout) findViewById( R.id.foodListL ) ).addView( onlyFoodListL, createParam(MP, MP) );
-        ImageView foodImage = new ImageView( this );
-        LinearLayout foodDataL  = new LinearLayout( this );         // 食材データ(賞味(消費)期限,名称)を縦に表示するためのレイアウト
+    private void viewFoods() {
+        this.adapter.clear();
+        adapter = new ImageArrayAdapter(this, R.layout.food_list, foodList);
+        Cursor cursor = foodDB.getAllFoodData();
+        try {
+            while (cursor.moveToNext()) {
+                foodList.add(new ListItem(cursor.getInt(0), cursor.getString(1), cursor.getString(2), foodDB.getBitmapFromByteArray(cursor.getBlob(3), getResources())));
+            }
+        } finally {
+            foodView = (ListView) findViewById(R.id.foodListL);
+            foodView.setAdapter(adapter);
+            registerForContextMenu(foodView);
 
-        // 食品表示の全体のマージンを設定するための変数
-        ViewGroup.LayoutParams allListLP = onlyFoodListL.getLayoutParams();
-        ViewGroup.MarginLayoutParams allListMLP = (ViewGroup.MarginLayoutParams)allListLP;
-
-        // 食品情報一つのマージン設定 上下にマージンを取る.
-        allListMLP.setMargins(0, 10, 0, 30);
-        onlyFoodListL.setLayoutParams( allListMLP );
-
-        // 食品のイメージをサイズ指定して表示
-        onlyFoodListL.addView( foodImage, createParam(192, 192) );
-        // 食品の情報( 賞味期限, 食品名 )を表示
-        onlyFoodListL.addView( foodDataL, createParam(MP, WC) );
-
-        // 食品画像のマージンを設定するための変数
-        ViewGroup.LayoutParams FoodImageLP = foodImage.getLayoutParams();
-        ViewGroup.MarginLayoutParams FoodImageMLP = (ViewGroup.MarginLayoutParams)FoodImageLP;
-
-        // 食品画像の右にマージンを取る
-        FoodImageMLP.setMargins(0, 0, 20, 0);
-        foodImage.setLayoutParams( FoodImageMLP );
-
-        TextView foodName = new TextView( this );
-        TextView foodExDate = new TextView( this );                 // 消費期限のテキスト
-        foodDataL.addView( foodName, createParam(WC, 192/2 ) );
-        foodDataL.addView( foodExDate, createParam(WC, 192/2 ) );
-
-        onlyFoodListL.setOrientation( LinearLayout.HORIZONTAL );
-        foodDataL.setOrientation( LinearLayout.VERTICAL );
-
-        foodImage.setImageResource( R.drawable.meet );
-
-        foodName.setText( "Name" );
-        foodExDate.setText( "ExDate" );
+            cursor.close();
+        }
     }
 
-    private LinearLayout.LayoutParams createParam(int w, int h){
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+
+        super.onCreateContextMenu(menu, v, menuInfo);
+
+        //コンテキストメニューの設定
+        menu.setHeaderTitle("メニュータイトル");
+        //Menu.add(int groupId, int itemId, int order, CharSequence title)
+        menu.add(0, CONTEXT_MENU_EDIT, 0, "Edit");
+        menu.add(0, CONTEXT_MENU_DELETE, 0, "Delete");
+    }
+
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+
+        System.out.println(getBaseContext());
+        switch (item.getItemId()) {
+            case CONTEXT_MENU_EDIT:
+                return true;
+            case CONTEXT_MENU_DELETE:
+                adapter.remove(adapter.getItem(info.position));
+                // System.out.println(adapter.get(info.position));
+                // System.out.println(foodList.get(info.position).getId());
+                // deleteList(info.position);
+                return true;
+            default:
+                return super.onContextItemSelected(item);
+        }
+    }
+
+    private LinearLayout.LayoutParams createParam(int w, int h) {
         return new LinearLayout.LayoutParams(w, h);
     }
 }
