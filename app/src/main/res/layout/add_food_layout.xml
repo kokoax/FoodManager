@@ -30,6 +30,7 @@
                 android:layout_margin="20dp"
                 android:layout_gravity="center_horizontal"
                 android:scaleType="centerCrop"
+                android:background="#FFF"
                 android:src="@drawable/noimage" />
 
             <LinearLayout
