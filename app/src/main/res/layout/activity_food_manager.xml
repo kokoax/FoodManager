@@ -20,9 +20,9 @@
         <ListView
             android:id="@+id/foodListL"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:divider="#c0c0c0"
-            android:dividerHeight="2dp"></ListView>
+            android:layout_height="match_parent"
+            android:dividerHeight="5dp"
+            android:divider="@drawable/divider" />
 
         <android.support.design.widget.FloatingActionButton
             android:id="@+id/addButton"

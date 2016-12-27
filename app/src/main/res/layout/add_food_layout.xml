@@ -13,16 +13,6 @@
             android:layout_height="wrap_content"
 
             android:layout_gravity="center_horizontal">
-            <!--
-            <ImageView
-                android:layout_width="216dp"
-                android:layout_height="216dp"
-                android:id="@+id/imageView"
-                android:layout_gravity="center_horizontal"
-                android:src="@drawable/abc_btn_check_to_on_mtrl_015"
-                android:layout_weight="0.26" />
-            -->
-
             <ImageButton
                 android:id="@+id/foodImage"
                 android:layout_width="216dp"

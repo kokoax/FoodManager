@@ -7,19 +7,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- :remoteさせる必要はないみたいだが、googleのサンプルコードにこうなっていたので:remoteしている -->
-    <receiver
-        android:name=".receiver.Notifier"
-        android:process=":remote"/>
-    <receiver android:name=".receiver.StartAlarmReceiver">
-        <intent-filter>
-            <action android:name="android.intent.action.BOOT_COMPLETED" />
-            <action android:name="android.intent.action.DATE_CHANGED" />
-            <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-            <action android:name="android.intent.action.TIME_SET" />
-            <action android:name="android.intent.action.PACKAGE_REPLACED" />
-        </intent-filter>
-    </receiver>
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -45,6 +32,8 @@
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
+
+        <receiver android:name=".Notifier" />
     </application>
 
 </manifest>

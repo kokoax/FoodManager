@@ -6,11 +6,10 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.net.Uri;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.TaskStackBuilder;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.ContextMenu;
@@ -18,24 +17,22 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.ListView;
 import android.support.design.widget.FloatingActionButton;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
-import com.example.apublic.foodmanager.R;
-import com.google.android.gms.appindexing.Action;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
+import static android.R.attr.bitmap;
 
 public class FoodManager extends AppCompatActivity {
     private final int MP = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -51,11 +48,6 @@ public class FoodManager extends AppCompatActivity {
 
     private List<ListItem> foodList = new ArrayList<ListItem>();
     ImageArrayAdapter adapter;
-    /**
-     * ATTENTION: This was auto-generated to implement the App Indexing API.
-     * See https://g.co/AppIndexing/AndroidStudio for more information.
-     */
-    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,13 +64,12 @@ public class FoodManager extends AppCompatActivity {
             public void onClick(View v) {
                 // 食品を追加するボタンを押すと,食品追加画面へ移動する.
                 Intent intent = new Intent(FoodManager.this, AddFood.class);
-                startActivityForResult(intent, 0);
+                startActivity(intent);
             }
         });
 
         viewFoods();
-        setLocalNotification(this, "TEST", 0, 10);
-        // sendNotification();
+        setLocalNotification(this, "TEST", 30);
     }
 
     protected void onRestart() {
@@ -122,69 +113,78 @@ public class FoodManager extends AppCompatActivity {
 
     public boolean onContextItemSelected(MenuItem item) {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
-
-        System.out.println(getBaseContext());
         switch (item.getItemId()) {
             case CONTEXT_MENU_EDIT:
+                // TODO: Edit時のインテントが実行されない
+                // 食品を追加するボタンを押すと,食品追加画面へ移動する.
+                Intent intent = new Intent(FoodManager.this, AddFood.class);
+
+                int id = (int) ((ListItem) adapter.getItem(info.position)).getId();
+                // intent.putExtra("ID", (int)((ListItem)adapter.getItem(info.position)).getId());
+                intent.putExtra("ID", id);
+
+                String title = (String) ((ListItem) adapter.getItem(info.position)).getTitle();
+                // intent.putExtra("TITLE", (String)((ListItem)adapter.getItem(info.position)).getTitle());
+                intent.putExtra("TITLE", title);
+
+                String Exp = (String) ((ListItem) adapter.getItem(info.position)).getExp();
+                // intent.putExtra("EXP", (String)((ListItem)adapter.getItem(info.position)).getExp());
+                intent.putExtra("EXP", Exp);
+
+                String timeStamp = (String) (new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss").format(Calendar.getInstance().getTime()));
+                String imageName = timeStamp + ".png";
+                File imageFile = new File(this.getFilesDir(), imageName);
+                FileOutputStream out;
+                try {
+                    out = new FileOutputStream(imageFile);
+                    ((ListItem) adapter.getItem(info.position)).getImageBit().compress(Bitmap.CompressFormat.PNG, 0, out);
+                    ///画像をアプリの内部領域に保存
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                intent.putExtra("IMAGE",
+                        imageFile.getAbsolutePath());
+
+                startActivity(intent);
+
                 return true;
             case CONTEXT_MENU_DELETE:
+                // TODO: エラーが出るので修正
                 adapter.remove(adapter.getItem(info.position));
-                // System.out.println(adapter.get(info.position));
-                // System.out.println(foodList.get(info.position).getId());
-                // deleteList(info.position);
+                int remove_id = (int)((ListItem) adapter.getItem(info.position)).getId();
+                foodDB.deleteFoodData(remove_id);
                 return true;
             default:
                 return super.onContextItemSelected(item);
         }
     }
 
-    private void sendNotification() {
-        Intent intent = new Intent(android.content.Intent.ACTION_VIEW);
-        intent.addCategory(Intent.CATEGORY_LAUNCHER);
-        intent.setClassName(getApplicationContext().getPackageName(), FoodManager.class.getName());
-        intent.setFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED | Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
-
-        Notification notification = new Notification.Builder(this)
-                .setContentTitle("Title!")
-                .setContentText("Content Text")
-                .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.meet)
-                .setAutoCancel(true)
-                .build();
-
-        NotificationManager nm = (NotificationManager)
-                getSystemService(Context.NOTIFICATION_SERVICE);
-
-        nm.notify(1000, notification);
-    }
-
-    public static void setLocalNotification(Context context, String message, int requestCode, int interval) {
+    public void setLocalNotification(Context context, String message, int requestCode) {
         Intent intent = new Intent(context, Notifier.class);
-        intent.putExtra("MESSAGE", message);
-        PendingIntent sender = PendingIntent.getBroadcast(context, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent sender = PendingIntent.getBroadcast(context, 30, intent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(System.currentTimeMillis());
         calendar.setTimeZone(TimeZone.getDefault());
 
-        /*
-        calendar.set(Calendar.HOUR_OF_DAY, 12);
-        calendar.set(Calendar.MINUTE, 42);
+        calendar.set(Calendar.HOUR_OF_DAY, 7);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
 
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        // AlarmManager.RTC_WAKEUPで端末スリープ時に起動させるようにする
-        // 1回だけ通知の場合はalarmManager.set()を使う
-        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(),
-            // 一日毎にアラームを呼び出す
-                AlarmManager.INTERVAL_DAY, sender);
-                */
-        calendar.setTimeInMillis(System.currentTimeMillis()); // 現在時刻を取得
-        calendar.add(Calendar.SECOND, 10);
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender);
-        Toast.makeText(context.getApplicationContext(), "Alarm Setting", Toast.LENGTH_SHORT).show();
+
+        long target_ms = calendar.getTimeInMillis();
+        long now_ms = Calendar.getInstance().getTimeInMillis();
+
+        //今日ならそのまま指定
+        if (target_ms >= now_ms) {
+            // AlarmManager.RTC_WAKEUPで端末スリープ時に起動させるようにする
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target_ms, sender);
+            //過ぎていたら明日の同時刻を指定
+        } else {
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+            target_ms = calendar.getTimeInMillis();
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target_ms, sender);
+        }
     }
 
     private LinearLayout.LayoutParams createParam(int w, int h) {

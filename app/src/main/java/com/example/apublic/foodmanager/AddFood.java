@@ -17,12 +17,18 @@ import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.TextView;
 
 import com.example.apublic.foodmanager.R;
 
+import org.w3c.dom.Text;
+
 import java.io.File;
 import java.io.FileOutputStream;
+import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
@@ -38,25 +44,53 @@ public class AddFood extends AppCompatActivity {
     private DBcontrol foodDB;
     private Uri m_uri;
     private ImageButton foodImage;
+    private EditText foodName;
+    private DatePicker exPicker;
     private Button sendButton;
     private Bitmap capturedImage;
+    private int id = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.add_food_layout);
 
-        foodDB = new DBcontrol(this);
-        foodImage = (ImageButton)findViewById(R.id.foodImage);
+        Intent getter = getIntent();
+        foodImage = (ImageButton) findViewById(R.id.foodImage);
+        foodName = (EditText) findViewById(R.id.foodName);
+        exPicker = (DatePicker) findViewById(R.id.exPicker);
+
         sendButton = (Button) findViewById(R.id.return_button);
-        capturedImage =  BitmapFactory.decodeResource(getResources(), R.drawable.noimage);
+        capturedImage = BitmapFactory.decodeResource(getResources(), R.drawable.noimage);
+
+        foodDB = new DBcontrol(this);
+
+        // 商品リストのEditからインテントを実行していた場合元からあるデータを
+        // 表示する.
+        if( (this.id = getter.getIntExtra("ID", -1)) != -1 ) {
+
+            foodImage.setImageBitmap(BitmapFactory.decodeFile((String)getter.getExtras().get("IMAGE")));
+
+            foodName.setText(getter.getStringExtra("TITLE"));
+
+            // TODO: 月がなぜかすべて1月になる
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy'-'MM'-'DD");
+            Calendar exp = Calendar.getInstance();
+            try {
+                exp.setTime( formatter.parse(getter.getStringExtra("EXP")) );
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+            exPicker.updateDate(exp.get(Calendar.YEAR), exp.get(Calendar.MONTH)+1, exp.get(Calendar.DAY_OF_MONTH));
+            sendButton.setText("変更");
+        }
 
         foodImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v){
                 // ACTION_IMAGE_CAPTURE に対応する アプリ をインテント
                 Intent intentCamera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//　ここのREQUEST_CAPTURE_IMAGEのインテントが実行されるとResultのrequestCodeに代入してonActivityResultが実行される
+                //　ここのREQUEST_CAPTURE_IMAGEのインテントが実行されるとResultのrequestCodeに代入してonActivityResultが実行される
                 startActivityForResult(intentCamera, REQUEST_CAPTURE_IMAGE);
             }
         });
@@ -70,13 +104,16 @@ public class AddFood extends AppCompatActivity {
                 if( !foodName.getText().toString().equals("") ) {
                     foodDB.open();
 
-                    SimpleDateFormat sdf = new SimpleDateFormat( "yyyy'年'MM'月'dd'日'");
+                    SimpleDateFormat sdf = new SimpleDateFormat( "yyyy'-'MM'-'dd");
 
                     GregorianCalendar exDate = new GregorianCalendar
                             ( exPicker.getYear(), exPicker.getMonth(), exPicker.getDayOfMonth() );
 
-                    foodDB.saveFoodData(foodName.getText().toString(), sdf.format(exDate.getTime()),capturedImage);
-
+                    if(id == -1) {
+                        foodDB.saveFoodData(foodName.getText().toString(), sdf.format(exDate.getTime()), capturedImage);
+                    } else {
+                        foodDB.updateFoodData(id, foodName.getText().toString(), sdf.format(exDate.getTime()), capturedImage);
+                    }
                     foodDB.close();
                     finish();
                 }

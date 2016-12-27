@@ -19,26 +19,27 @@ public class ListItem {
         this.exp = exp;
         this.imageBit = imageBit;
     }
+
     public int getId() {
-        return id;
+        return this.id;
     }
     public void setId(int id) {
         this.id = id;
     }
-    public Bitmap getImageId() {
-        return imageBit;
+    public Bitmap getImageBit() {
+        return this.imageBit;
     }
-    public void setImageId(Bitmap imageBit) {
+    public void setImageBit(Bitmap imageBit) {
         this.imageBit = imageBit;
     }
     public String getTitle() {
-        return title;
+        return this.title;
     }
     public void setTitle(String title) {
         this.title = title;
     }
     public String getExp() {
-        return exp;
+        return this.exp;
     }
     public void setExp(String exp) {
         this.exp = exp;
