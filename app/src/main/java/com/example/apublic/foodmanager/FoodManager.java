@@ -1,84 +1,193 @@
 package com.example.apublic.foodmanager;
 
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.ContextMenu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
+import android.widget.AdapterView;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.support.design.widget.FloatingActionButton;
+import android.widget.Toast;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.TimeZone;
+
+import static android.R.attr.bitmap;
 
 public class FoodManager extends AppCompatActivity {
     private final int MP = ViewGroup.LayoutParams.MATCH_PARENT;
     private final int WC = ViewGroup.LayoutParams.WRAP_CONTENT;
+    static final int CONTEXT_MENU_EDIT = 0;
+    static final int CONTEXT_MENU_DELETE = 1;
+
+    private ListView foodView;
+
+    private DBcontrol foodDB;
 
     FloatingActionButton addButton;
+
+    private List<ListItem> foodList = new ArrayList<ListItem>();
+    ImageArrayAdapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_food_manager);
 
-        addButton = (FloatingActionButton) findViewById( R.id.addButton );
-        viewFood();
+        foodDB = new DBcontrol(this);
+        addButton = (FloatingActionButton) findViewById(R.id.addButton);
 
-        addButton.setOnClickListener( new View.OnClickListener() {
+        foodDB.open();
+
+        addButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick( View v ){
-                // インテントの生成
+            public void onClick(View v) {
+                // 食品を追加するボタンを押すと,食品追加画面へ移動する.
                 Intent intent = new Intent(FoodManager.this, AddFood.class);
-                startActivityForResult(intent, 0);
-                // viewFood();
-                // toAddView();
+                startActivity(intent);
             }
         });
+
+        viewFoods();
+        setLocalNotification(this, "TEST", 30);
+    }
+
+    protected void onRestart() {
+        viewFoods();
+
+        super.onRestart();
     }
 
     // トップ画面を開く際にDBからすべての食材のデータを表示する.
-    private void viewFood(){
-        LinearLayout onlyFoodListL  = new LinearLayout( this );     // 一つの食材をイメージを縦2行分にして右に賞味期限,名称を2行にして表示するためレイアウト
-        ( (LinearLayout) findViewById( R.id.foodListL ) ).addView( onlyFoodListL, createParam(MP, MP) );
-        ImageView foodImage = new ImageView( this );
-        LinearLayout foodDataL  = new LinearLayout( this );         // 食材データ(賞味(消費)期限,名称)を縦に表示するためのレイアウト
+    private void viewFoods() {
+        if (adapter != null) {
+            this.adapter.clear();
+        }
 
-        // 食品表示の全体のマージンを設定するための変数
-        ViewGroup.LayoutParams allListLP = onlyFoodListL.getLayoutParams();
-        ViewGroup.MarginLayoutParams allListMLP = (ViewGroup.MarginLayoutParams)allListLP;
+        adapter = new ImageArrayAdapter(this, R.layout.food_list, foodList);
+        Cursor cursor = foodDB.getAllFoodData();
+        try {
+            while (cursor.moveToNext()) {
+                foodList.add(new ListItem(cursor.getInt(0), cursor.getString(1), cursor.getString(2), foodDB.getBitmapFromByteArray(cursor.getBlob(3), getResources())));
+            }
+        } finally {
+            foodView = (ListView) findViewById(R.id.foodListL);
+            foodView.setAdapter(adapter);
+            registerForContextMenu(foodView);
 
-        // 食品情報一つのマージン設定 上下にマージンを取る.
-        allListMLP.setMargins(0, 10, 0, 30);
-        onlyFoodListL.setLayoutParams( allListMLP );
-
-        // 食品のイメージをサイズ指定して表示
-        onlyFoodListL.addView( foodImage, createParam(192, 192) );
-        // 食品の情報( 賞味期限, 食品名 )を表示
-        onlyFoodListL.addView( foodDataL, createParam(MP, WC) );
-
-        // 食品画像のマージンを設定するための変数
-        ViewGroup.LayoutParams FoodImageLP = foodImage.getLayoutParams();
-        ViewGroup.MarginLayoutParams FoodImageMLP = (ViewGroup.MarginLayoutParams)FoodImageLP;
-
-        // 食品画像の右にマージンを取る
-        FoodImageMLP.setMargins(0, 0, 20, 0);
-        foodImage.setLayoutParams( FoodImageMLP );
-
-        TextView foodName = new TextView( this );
-        TextView foodExDate = new TextView( this );                 // 消費期限のテキスト
-        foodDataL.addView( foodName, createParam(WC, 192/2 ) );
-        foodDataL.addView( foodExDate, createParam(WC, 192/2 ) );
-
-        onlyFoodListL.setOrientation( LinearLayout.HORIZONTAL );
-        foodDataL.setOrientation( LinearLayout.VERTICAL );
-
-        foodImage.setImageResource( R.drawable.meet );
-
-        foodName.setText( "Name" );
-        foodExDate.setText( "ExDate" );
+            cursor.close();
+        }
     }
 
-    private LinearLayout.LayoutParams createParam(int w, int h){
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+
+        super.onCreateContextMenu(menu, v, menuInfo);
+
+        //コンテキストメニューの設定
+        menu.setHeaderTitle("メニュータイトル");
+        //Menu.add(int groupId, int itemId, int order, CharSequence title)
+        menu.add(0, CONTEXT_MENU_EDIT, 0, "Edit");
+        menu.add(0, CONTEXT_MENU_DELETE, 0, "Delete");
+    }
+
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+        switch (item.getItemId()) {
+            case CONTEXT_MENU_EDIT:
+                // TODO: Edit時のインテントが実行されない
+                // 食品を追加するボタンを押すと,食品追加画面へ移動する.
+                Intent intent = new Intent(FoodManager.this, AddFood.class);
+
+                int id = (int) ((ListItem) adapter.getItem(info.position)).getId();
+                // intent.putExtra("ID", (int)((ListItem)adapter.getItem(info.position)).getId());
+                intent.putExtra("ID", id);
+
+                String title = (String) ((ListItem) adapter.getItem(info.position)).getTitle();
+                // intent.putExtra("TITLE", (String)((ListItem)adapter.getItem(info.position)).getTitle());
+                intent.putExtra("TITLE", title);
+
+                String Exp = (String) ((ListItem) adapter.getItem(info.position)).getExp();
+                // intent.putExtra("EXP", (String)((ListItem)adapter.getItem(info.position)).getExp());
+                intent.putExtra("EXP", Exp);
+
+                String timeStamp = (String) (new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss").format(Calendar.getInstance().getTime()));
+                String imageName = timeStamp + ".png";
+                File imageFile = new File(this.getFilesDir(), imageName);
+                FileOutputStream out;
+                try {
+                    out = new FileOutputStream(imageFile);
+                    ((ListItem) adapter.getItem(info.position)).getImageBit().compress(Bitmap.CompressFormat.PNG, 0, out);
+                    ///画像をアプリの内部領域に保存
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                intent.putExtra("IMAGE",
+                        imageFile.getAbsolutePath());
+
+                startActivity(intent);
+
+                return true;
+            case CONTEXT_MENU_DELETE:
+                // TODO: エラーが出るので修正
+                adapter.remove(adapter.getItem(info.position));
+                int remove_id = (int)((ListItem) adapter.getItem(info.position)).getId();
+                foodDB.deleteFoodData(remove_id);
+                return true;
+            default:
+                return super.onContextItemSelected(item);
+        }
+    }
+
+    public void setLocalNotification(Context context, String message, int requestCode) {
+        Intent intent = new Intent(context, Notifier.class);
+        PendingIntent sender = PendingIntent.getBroadcast(context, 30, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getDefault());
+
+        calendar.set(Calendar.HOUR_OF_DAY, 7);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+
+        long target_ms = calendar.getTimeInMillis();
+        long now_ms = Calendar.getInstance().getTimeInMillis();
+
+        //今日ならそのまま指定
+        if (target_ms >= now_ms) {
+            // AlarmManager.RTC_WAKEUPで端末スリープ時に起動させるようにする
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target_ms, sender);
+            //過ぎていたら明日の同時刻を指定
+        } else {
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+            target_ms = calendar.getTimeInMillis();
+            alarmManager.set(AlarmManager.RTC_WAKEUP, target_ms, sender);
+        }
+    }
+
+    private LinearLayout.LayoutParams createParam(int w, int h) {
         return new LinearLayout.LayoutParams(w, h);
     }
 }
