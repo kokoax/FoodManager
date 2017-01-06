@@ -39,7 +39,7 @@ public class Notifier extends BroadcastReceiver {
                 .setContentTitle(String.valueOf(foodDB.getImminetFoods().size()) + "個の食材の賞味期限が迫っています")
                 .setContentText("aaa\nbbb\n")
                 .setContentIntent(pendingIntent)
-                .setSmallIcon(R.drawable.meet)
+                .setSmallIcon(R.drawable.noimage)
                 .setAutoCancel(true)
                 .build();
 

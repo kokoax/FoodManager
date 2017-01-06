@@ -73,15 +73,14 @@ public class AddFood extends AppCompatActivity {
 
             foodName.setText(getter.getStringExtra("TITLE"));
 
-            // TODO: 月がなぜかすべて1月になる
-            SimpleDateFormat formatter = new SimpleDateFormat("yyyy'-'MM'-'DD");
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
             Calendar exp = Calendar.getInstance();
             try {
                 exp.setTime( formatter.parse(getter.getStringExtra("EXP")) );
             } catch (ParseException e) {
                 e.printStackTrace();
             }
-            exPicker.updateDate(exp.get(Calendar.YEAR), exp.get(Calendar.MONTH)+1, exp.get(Calendar.DAY_OF_MONTH));
+            exPicker.updateDate(exp.get(Calendar.YEAR), exp.get(Calendar.MONTH), exp.get(Calendar.DAY_OF_MONTH));
             sendButton.setText("変更");
         }
 

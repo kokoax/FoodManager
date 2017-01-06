@@ -85,8 +85,8 @@ public class DBcontrol {
         return db.delete(TABLE_NAME, null, null) > 0;
     }
 
-    public boolean deleteFoodData(int id) {
-        return db.delete(TABLE_NAME, COL_ID + "=" + id, null) > 0;
+    public boolean deleteFoodDataFromId(int id) {
+        return db.delete(TABLE_NAME, COL_ID + "=" + String.valueOf(id), null) > 0;
     }
 
     public Cursor getAllFoodData() {
@@ -115,10 +115,9 @@ public class DBcontrol {
         values.put(COL_FOOD_NAME, name);
         values.put(COL_FOOD_EX, ex);
         values.put(COL_FOOD_IMG, bitmap2byteArray(image));
-        // System.out.println(DateFormat.getDateInstance().format(dateNow));
         values.put(COL_LASTUPDATE, DateFormat.getDateInstance().format(dateNow));
 
-        db.insertOrThrow(TABLE_NAME, null, values);
+        db.update(TABLE_NAME, values, COL_ID+"="+String.valueOf(id), null);
     }
 
     public Bitmap getBitmapFromByteArray(byte[] bytes, Resources resource) {

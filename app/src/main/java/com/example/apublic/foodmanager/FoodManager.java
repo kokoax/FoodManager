@@ -88,7 +88,9 @@ public class FoodManager extends AppCompatActivity {
         Cursor cursor = foodDB.getAllFoodData();
         try {
             while (cursor.moveToNext()) {
-                foodList.add(new ListItem(cursor.getInt(0), cursor.getString(1), cursor.getString(2), foodDB.getBitmapFromByteArray(cursor.getBlob(3), getResources())));
+                foodList.add(new ListItem(
+                        cursor.getInt(cursor.getColumnIndex("_id")), cursor.getString(cursor.getColumnIndex("foodName")),
+                        cursor.getString(cursor.getColumnIndex("foodEx")), foodDB.getBitmapFromByteArray(cursor.getBlob(cursor.getColumnIndex("foodImg")), getResources())));
             }
         } finally {
             foodView = (ListView) findViewById(R.id.foodListL);
@@ -115,22 +117,16 @@ public class FoodManager extends AppCompatActivity {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
         switch (item.getItemId()) {
             case CONTEXT_MENU_EDIT:
-                // TODO: Edit時のインテントが実行されない
                 // 食品を追加するボタンを押すと,食品追加画面へ移動する.
                 Intent intent = new Intent(FoodManager.this, AddFood.class);
 
-                int id = (int) ((ListItem) adapter.getItem(info.position)).getId();
-                // intent.putExtra("ID", (int)((ListItem)adapter.getItem(info.position)).getId());
-                intent.putExtra("ID", id);
+                intent.putExtra("ID", (int) ((ListItem) adapter.getItem(info.position)).getId());
 
-                String title = (String) ((ListItem) adapter.getItem(info.position)).getTitle();
-                // intent.putExtra("TITLE", (String)((ListItem)adapter.getItem(info.position)).getTitle());
-                intent.putExtra("TITLE", title);
+                intent.putExtra("TITLE", (String) ((ListItem) adapter.getItem(info.position)).getTitle());
 
-                String Exp = (String) ((ListItem) adapter.getItem(info.position)).getExp();
-                // intent.putExtra("EXP", (String)((ListItem)adapter.getItem(info.position)).getExp());
-                intent.putExtra("EXP", Exp);
+                intent.putExtra("EXP", (String) ((ListItem) adapter.getItem(info.position)).getExp());
 
+                // Bitmapを直にputExtraするとメモリリーク的な事が起こり落ちるため,画像を一時保存してそのパスを渡している.
                 String timeStamp = (String) (new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss").format(Calendar.getInstance().getTime()));
                 String imageName = timeStamp + ".png";
                 File imageFile = new File(this.getFilesDir(), imageName);
@@ -149,10 +145,8 @@ public class FoodManager extends AppCompatActivity {
 
                 return true;
             case CONTEXT_MENU_DELETE:
-                // TODO: エラーが出るので修正
+                foodDB.deleteFoodDataFromId((int)((ListItem) adapter.getItem(info.position)).getId());
                 adapter.remove(adapter.getItem(info.position));
-                int remove_id = (int)((ListItem) adapter.getItem(info.position)).getId();
-                foodDB.deleteFoodData(remove_id);
                 return true;
             default:
                 return super.onContextItemSelected(item);
